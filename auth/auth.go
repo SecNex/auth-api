@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +20,7 @@ type Authentication struct {
 	ID        uuid.UUID
 	Header    AuthenticationHeader
 	ExpiresIn int
+	Hash      *Hash
 }
 
 func newRandomString(length int) string {
@@ -30,8 +32,29 @@ func newRandomString(length int) string {
 	return string(b)
 }
 
-func stringToBase64(s string) string {
+func StringToBase64(s string) string {
 	return base64.StdEncoding.EncodeToString([]byte(s))
+}
+
+func Base64ToIDAndToken(s string) (uuid.UUID, string, error) {
+	data, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	split := strings.Split(string(data), ":")
+	id, err := uuid.Parse(split[0])
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	return id, split[1], nil
+}
+
+func Base64ToString(s string) (string, error) {
+	data, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func NewUUID() uuid.UUID {
@@ -42,6 +65,7 @@ func NewAuthentication() *Authentication {
 	return &Authentication{
 		ID:        uuid.New(),
 		ExpiresIn: 3600,
+		Hash:      NewHash(NewHashConfig(64*1024, 4, 4, 16, 32)),
 	}
 }
 
@@ -52,29 +76,35 @@ func NewAuthenticationWithID(id uuid.UUID) *Authentication {
 	}
 }
 
-func (a *Authentication) GenerateToken() string {
+func (a *Authentication) GenerateToken() (string, string) {
 	log.Printf("Generating token for authentication: %v", a.ID)
 	value := newRandomString(32)
 	token := fmt.Sprintf("%v:%v", a.ID, value)
-	log.Printf("Generated token: %v", token)
 	a.Header = AuthenticationHeader{
 		Type:  "Bearer",
 		Value: value,
-		Token: stringToBase64(token),
+		Token: StringToBase64(token),
 	}
-	return a.Header.Token
+	_, encodedHash, err := a.Hash.HashPassword(value)
+	if err != nil {
+		log.Fatalf("Error hashing password: %v", err)
+	}
+	return a.Header.Token, encodedHash
 }
 
-func (a *Authentication) GenerateTokenWithSecret(secret string) string {
-	log.Printf("Generating token for authentication: %v", a.ID)
+func (a *Authentication) GenerateTokenWithSecret(secret string) (string, string) {
+	// log.Printf("Generating token for authentication: %v", a.ID)
 	token := fmt.Sprintf("%v:%v", a.ID, secret)
-	log.Printf("Generated token: %v", token)
 	a.Header = AuthenticationHeader{
 		Type:  "Bearer",
 		Value: secret,
-		Token: stringToBase64(token),
+		Token: StringToBase64(token),
 	}
-	return a.Header.Token
+	_, encodedHash, err := a.Hash.HashPassword(secret)
+	if err != nil {
+		log.Fatalf("Error hashing password: %v", err)
+	}
+	return a.Header.Token, encodedHash
 }
 
 func GenerateRandomString(length int) string {

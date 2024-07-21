@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/secnex/auth-api/api"
 	"github.com/secnex/auth-api/auth"
 )
 
@@ -23,17 +24,42 @@ type Config struct {
 
 func main() {
 	log.Printf("Starting %v...", appName)
+	// Test()
 	if checkConfig() {
 		byteData := readConfig()
 		data := configToStruct(byteData)
 		log.Printf("Config: %v", data)
-		__token := auth.NewAuthenticationWithID(data.Client.ClientID).GenerateTokenWithSecret(data.Client.ClientSecret)
+		__token, __tokenHash := auth.NewAuthenticationWithID(data.Client.ClientID).GenerateTokenWithSecret(data.Client.ClientSecret)
 		log.Printf("Authentication token: %v", __token)
 		log.Printf("Authentication header: Bearer %v", __token)
+		log.Printf("Authentication token hash: %v", __tokenHash)
 		rmConfig()
 	} else {
 		// TOOD: Check if a client already exists, if not create a new one with default values and save it to the database
 		log.Printf("Config not found! Check if a client already exists, if not create a new one with default values and save it to the database.")
+	}
+	__api := api.NewAPI("localhost", 8081)
+	__api.Start()
+}
+
+func Test(password string, hash string) {
+	id, secret, _ := auth.Base64ToIDAndToken(password)
+	log.Printf("ID: %v", id)
+	log.Printf("Secret: %v", secret)
+	VerifyTest(hash, secret)
+}
+
+func VerifyTest(hash string, password string) {
+	log.Printf("Verifying test...")
+	__hash := auth.NewDefaultHash()
+	res, err := __hash.VerifyPassword(hash, password)
+	if err != nil {
+		log.Fatalf("Error verifying test: %v", err)
+	}
+	if res {
+		log.Printf("Test verified!")
+	} else {
+		log.Fatalf("Test not verified!")
 	}
 }
 
