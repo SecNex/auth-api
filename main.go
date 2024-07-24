@@ -38,7 +38,10 @@ func main() {
 		// TOOD: Check if a client already exists, if not create a new one with default values and save it to the database
 		log.Printf("Config not found! Check if a client already exists, if not create a new one with default values and save it to the database.")
 	}
-	__api := api.NewAPI("localhost", 8081)
+	proxies := api.NewTrustedProxies()
+	__api := api.NewAPI("localhost", 8081, proxies)
+	__api.AddTrustedProxy("127.0.0.1")
+	__api.AddTrustedProxy("::1")
 	__api.Start()
 }
 

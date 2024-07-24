@@ -77,7 +77,6 @@ func NewAuthenticationWithID(id uuid.UUID) *Authentication {
 }
 
 func (a *Authentication) GenerateToken() (string, string) {
-	log.Printf("Generating token for authentication: %v", a.ID)
 	value := newRandomString(32)
 	token := fmt.Sprintf("%v:%v", a.ID, value)
 	a.Header = AuthenticationHeader{
